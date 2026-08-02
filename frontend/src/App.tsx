@@ -10,51 +10,56 @@ function App() {
   const handleSubmit = async (data: any) => {
     setLoading(true)
     setProgress({ current: 0, total: data.urls.length })
-
     try {
-      const parseRes = await fetch('http://localhost:8000/api/parse', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          urls: data.urls,
-          niche: data.niche,
-          max_concurrent: 3
-        })
+      const parseRes = await fetch("/api/parse", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ urls: data.urls, niche: data.niche, max_concurrent: 3 })
       })
       const parsed = await parseRes.json()
-      
       const leadsWithEmails = []
       for (let i = 0; i < parsed.results.length; i++) {
         const lead = parsed.results[i]
         setProgress({ current: i + 1, total: parsed.results.length })
-        
-        if (lead.status === 'completed') {
-          const genRes = await fetch('http://localhost:8000/api/generate-email', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              lead_data: lead,
-              niche: data.niche,
-              model: 'gemini'
-            })
+        if (lead.status === "completed") {
+          const genRes = await fetch("/api/generate-email", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ lead_data: lead, niche: data.niche, model: "gemini" })
           })
           const emailData = await genRes.json()
-          leadsWithEmails.push({
-            ...lead,
-            id: `lead-${i}`,
-            email: emailData.data
-          })
+          leadsWithEmails.push({ ...lead, id: `lead-${i}`, email: emailData.data })
         } else {
           leadsWithEmails.push({ ...lead, id: `lead-${i}` })
         }
       }
-      
       setLeads(leadsWithEmails)
     } catch (err: any) {
-      alert('Ошибка: ' + err.message)
+      alert("Ошибка: " + err.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  const handleExport = (selectedIds: string[]) => {
+    const selectedLeads = leads.filter(l => selectedIds.includes(l.id))
+    const header = "Domain,Company,Pains,Subject,Body,Hook\n"
+    const rows = selectedLeads.map(l => {
+      const pains = (l.detected_pains || []).join("; ")
+      const sub = l.email?.subject || ""
+      const body = (l.email?.body || "").replace(/"/g, '""').replace(/\n/g, " ")
+      const hook = l.email?.hook || ""
+      return `"${l.domain || ""}","${l.company_name || ""}","${pains}","${sub}","${body}","${hook}"`
+    }).join("\n")
+    const csv = "\uFEFF" + header + rows
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement("a")
+    link.href = url
+    link.download = `leadforge-export-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
 
   return (
@@ -64,18 +69,9 @@ function App() {
           <h1 className="text-3xl font-bold text-gray-900">LeadForge</h1>
           <p className="text-gray-500 mt-1">Автоматический аудит сайтов и генерация холодных писем</p>
         </div>
-        
-        <CampaignForm 
-          onSubmit={handleSubmit} 
-          isLoading={loading} 
-          progress={progress} 
-        />
-        
+        <CampaignForm onSubmit={handleSubmit} isLoading={loading} progress={progress} />
         {leads.length > 0 && (
-          <ResultsTable 
-            leads={leads} 
-            onExport={(ids) => console.log('Export:', ids)} 
-          />
+          <ResultsTable leads={leads} onExport={handleExport} />
         )}
       </div>
     </div>
