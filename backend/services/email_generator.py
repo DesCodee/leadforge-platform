@@ -22,7 +22,7 @@ RULES:
 
     def _user(self, lead: Dict, niche: str) -> str:
         pains = ", ".join(lead.get("detected_pains", [])) or "no issues"
-        return f"""Website: {lead['url']}
+        return f"""Website: {lead.get('url') or lead.get('domain', 'Unknown')}
 Company: {lead.get('company_name', 'Unknown')}
 Load time: {lead.get('load_time_ms', 0)}ms
 SSL: {'Yes' if lead.get('ssl_valid') else 'No'}
