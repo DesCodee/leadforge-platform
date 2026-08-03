@@ -57,7 +57,6 @@ function App() {
     const now = new Date()
     const reset = new Date(profile.reset_date)
     if (now > reset) {
-      // Сброс лимита
       await supabase.from('profiles').update({
         monthly_url_used: 0,
         reset_date: new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString()
@@ -119,6 +118,10 @@ function App() {
       }
     }
     loadCampaigns()
+  }
+
+  const handleUpdateLead = (leadId: string, email: { subject: string; body: string; hook: string }) => {
+    setLeads(prev => prev.map(l => l.id === leadId ? { ...l, email: { ...l.email, ...email }, is_edited: true } : l))
   }
 
   const handleSubmit = async (data: any) => {
@@ -269,7 +272,7 @@ function App() {
           <>
             <CampaignForm onSubmit={handleSubmit} isLoading={loading} progress={progress} />
             {leads.length > 0 && (
-              <ResultsTable leads={leads} onExport={handleExport} />
+              <ResultsTable leads={leads} onExport={handleExport} onUpdateLead={handleUpdateLead} />
             )}
           </>
         )}
